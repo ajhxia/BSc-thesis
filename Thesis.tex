@@ -1,0 +1,25 @@
+\documentclass[english,oneside,noexaminfo]{sapthesis}
+
+% Tutti i pacchetti e le impostazioni grafiche sono nel file .sty.
+\usepackage{styles/thesis-style}
+\input{config/metadata}
+
+\begin{document}
+
+\frontmatter
+\maketitle
+\input{chapters/abstract}
+\tableofcontents
+
+\mainmatter
+\input{chapters/01_introduction}
+\input{chapters/02_fundamentals}
+\input{chapters/03_tailscale}
+\input{chapters/04_experimental_analysis}
+\input{chapters/05_conclusions}
+
+\backmatter
+\input{chapters/acknowledgements}
+\input{chapters/references}
+
+\end{document}

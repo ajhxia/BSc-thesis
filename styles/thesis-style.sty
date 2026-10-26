@@ -1,0 +1,50 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{styles/thesis-style}[2026/10/25 Thesis layout and network diagrams]
+
+\RequirePackage[utf8]{inputenc}
+\RequirePackage{microtype}
+\RequirePackage{amsthm}
+\RequirePackage{tikz}
+\RequirePackage{graphicx}
+\RequirePackage{booktabs}
+\graphicspath{{figures/}}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric}
+
+% Stile uniforme e compatto per gli schemi di rete.
+\tikzset{
+	netdiagram/.style={font=\footnotesize\sffamily,>=Latex},
+	netpeer/.style={ellipse,draw=black,fill=white,minimum height=7mm,align=center,inner xsep=4pt,inner ysep=1pt},
+	netdevice/.style={rectangle,draw=black,fill=white,rounded corners=1pt,align=center,inner xsep=5pt,inner ysep=3pt},
+	netdetail/.style={font=\scriptsize,align=center,text=black,inner sep=1pt},
+	netline/.style={draw=black,line width=0.55pt},
+	netflow/.style={netline,-{Latex[length=1.6mm]}},
+	netboth/.style={netline,<->},
+	netcontrol/.style={netflow,densely dashed}
+}
+
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[chapter]
+
+\theoremstyle{remark}
+\newtheorem{example}{Example}[chapter]
+
+\RequirePackage[nottoc,notlof,notlot]{tocbibind}
+\RequirePackage{hyperref}
+
+% Impaginazione dei paragrafi: interlinea compatta, nessun rientro.
+\linespread{0.9}
+
+\hypersetup{
+	hidelinks,
+	pdftitle={Tailscale and NAT Traversal: An Experimental Analysis of Peer-to-Peer Connectivity Techniques Across NAT},
+	pdfauthor={Alessia Cassetta},
+	pdfkeywords={Tailscale, NAT traversal, peer-to-peer connectivity, WireGuard}
+}
+
+% Impaginazione senza rientro, come nel file originale.
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.4em}
+
+% Solo section e subsection numerate e visibili nell'indice.
+\setcounter{secnumdepth}{2}
+\setcounter{tocdepth}{2}
