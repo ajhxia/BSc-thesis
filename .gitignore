@@ -1,0 +1,35 @@
+# LaTeX auxiliary files generated during compilation.
+*.aux
+*.log
+*.toc
+*.lof
+*.lot
+*.out
+*.fls
+*.fdb_latexmk
+*.synctex
+*.synctex.gz
+*.synctex.gz(busy)
+*.bbl
+*.blg
+*.bcf
+*.run.xml
+*.nav
+*.snm
+*.vrb
+*.idx
+*.ilg
+*.ind
+*.acn
+*.acr
+*.alg
+*.glg
+*.glo
+*.gls
+*.ist
+*.xdv
+*.dvi
+*.tmp
+
+# Keep all LaTeX sources, style files and the compiled PDF in Git.
+# PDFs are not ignored (including Thesis.pdf).

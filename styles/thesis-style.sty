@@ -25,9 +25,18 @@
 \theoremstyle{definition}
 \newtheorem{definition}{Definition}[chapter]
 
-\theoremstyle{remark}
-\newtheorem{example}{Example}[chapter]
+\newtheoremstyle{exampleStyle}
+{\topsep}          % Spazio sopra
+{\topsep}          % Spazio sotto
+{\normalfont}      % Testo normale
+{}                 % Nessuna indentazione
+{\bfseries\itshape}% Titolo grassetto e corsivo
+{.}                % Punto dopo il titolo
+{0.5em}            % Spazio tra titolo e testo
+{}                 % Formato standard
 
+\theoremstyle{exampleStyle}
+\newtheorem{example}{Example}[chapter]
 \RequirePackage[nottoc,notlof,notlot]{tocbibind}
 \RequirePackage{hyperref}
 

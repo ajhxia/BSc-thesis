@@ -48,7 +48,6 @@ In this example, \texttt{192.168.1.1} represents the default gateway for the hos
 
 \subsection{Public and Private IPv4 Addresses}
 Not all IPv4 addresses are globally routable.
-
 \begin{itemize}
 	\item \textit{Public addresses} are globally unique and can be used to identify an interface on the public Internet. An Internet router can thus use its own routing information to forward the traffic to the prefix to which a specific public address belongs.
 
@@ -123,6 +122,19 @@ The fundamental question is what happens when the same internal endpoint communi
 \begin{itemize}
 	\item In the \textit{Endpoint-Independent Mapping} behavior, the same internal endpoint maintains the same external mapping regardless of the external destination.
 	      For example, a host can contact Server A and Server B while retaining the same mapped public endpoint, as shown in Table~\ref{tab:endpoint-independent-mapping}. This behavior is particularly useful for NAT Traversal techniques, since the public endpoint tends to be reused to communicate with a different peer.
+	      \begin{table}[htbp]
+		      \centering
+		      \caption{Example of endpoint-independent mapping for two remote destinations.}
+		      \label{tab:endpoint-independent-mapping}
+		      \begin{tabular}{lll}
+			      \toprule
+			      Internal endpoint          & Destination & External endpoint           \\
+			      \midrule
+			      \texttt{192.168.1.10:5000} & Server A    & \texttt{203.0.113.20:40000} \\
+			      \texttt{192.168.1.10:5000} & Server B    & \texttt{203.0.113.20:40000} \\
+			      \bottomrule
+		      \end{tabular}
+	      \end{table}
 
 	\item In the \textit{Address-Dependent Mapping} behavior, the mapping depends on the destination IP address. The same internal endpoint can be associated with different external endpoints when communicating with different external destinations.
 
@@ -131,20 +143,6 @@ The fundamental question is what happens when the same internal endpoint communi
 	      This behavior makes NAT traversal more complex, because knowing the observed mapping to an external server does not necessarily guarantee that one can predict the mapping that will be used when communicating with another device.
 
 \end{itemize}
-
-\begin{table}[htbp]
-	\centering
-	\caption{Example of endpoint-independent mapping for two remote destinations.}
-	\label{tab:endpoint-independent-mapping}
-	\begin{tabular}{lll}
-		\toprule
-		Internal endpoint          & Destination & External endpoint           \\
-		\midrule
-		\texttt{192.168.1.10:5000} & Server A    & \texttt{203.0.113.20:40000} \\
-		\texttt{192.168.1.10:5000} & Server B    & \texttt{203.0.113.20:40000} \\
-		\bottomrule
-	\end{tabular}
-\end{table}
 
 \paragraph{Filtering Behavior}
 The filtering behavior, on the other hand, concerns the packets coming from the external network and determines which sources are allowed to reuse the existing mapping.
@@ -525,7 +523,6 @@ Unlike traditional VPN solutions that may include additional mechanisms for user
 \subsection{Peer Configuration and Secure Communication}
 
 Each WireGuard interface has its own private key, while remote peers are identified through their public keys. To establish communication, a peer must be configured with information such as:
-
 \begin{itemize}
 	\item Its own private key;
 	\item The public key of the remote peer;
