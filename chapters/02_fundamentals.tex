@@ -1,5 +1,3 @@
-% !TeX root = ../Thesis.tex
-
 \chapter{Fundamentals}
 \section{IPv4 and Private Networks}
 \begin{definition}
@@ -65,7 +63,9 @@ NAT allows the addresses used within the private network to be replaced with add
 \newpage
 \section{Network Address Translation}
 \begin{definition}
-	\textit{Network Address Translation (NAT)} is a method used by routers to let multiple devices on a private local network share a single public IP address to access the internet.
+	\textit{Network Address Translation (NAT)} is a mechanism
+	that translates IP addresses between different address realms,
+	typically between a private network and a public network.
 \end{definition}
 
 NAT is commonly deployed at the boundary between a private IPv4 network and the Internet \cite{rfc2663}.
@@ -99,7 +99,7 @@ In this way, more devices in the private network can share just one public IPv4 
 		\longleftrightarrow
 		\texttt{203.0.113.20:40000}
 	\]
-	From the point of view of the external host, the traffic does not come from \texttt{192.168.1.10:5000}, but from the public endpoint \texttt{203.0.113.20:40000}.
+	From the point of view of the external host, the traffic does not come from \texttt{192.168.1.10:5000}, but from the external endpoint \texttt{203.0.113.20:40000}.
 
 	The NAT must maintain a \textit{state}, or mapping, which allows it to map the packets received on the external endpoint to the correct host in the private network.
 	In conclusion, a response directed to \texttt{203.0.113.20:40000} can be translated again and forwarded to \texttt{192.168.1.10:5000}.
@@ -115,13 +115,13 @@ This distinction is formalized in \cite{rfc4787}, which describes the behavioral
 
 \paragraph{Mapping Behavior}
 The mapping behavior determines in which way the NAT associates an internal endpoint with an external one. Let's consider the internal endpoint \texttt{192.168.1.10:5000}.
-When this device communicates with an external server, the NAT can assign to it the public endpoint \texttt{203.0.113.20:40000}.
+When this device communicates with an external server, the NAT can assign to it the external endpoint \texttt{203.0.113.20:40000}.
 
 The fundamental question is what happens when the same internal endpoint communicates with a different external destination. And we can distinguish three different behaviors:
 
 \begin{itemize}
 	\item In the \textit{Endpoint-Independent Mapping} behavior, the same internal endpoint maintains the same external mapping regardless of the external destination.
-	      For example, a host can contact Server A and Server B while retaining the same mapped public endpoint, as shown in Table~\ref{tab:endpoint-independent-mapping}. This behavior is particularly useful for NAT Traversal techniques, since the public endpoint tends to be reused to communicate with a different peer.
+	      For example, a host can contact Server A and Server B while retaining the same mapped external  endpoint, as shown in Table~\ref{tab:endpoint-independent-mapping}. This behavior is particularly useful for NAT Traversal techniques, since the external endpoint tends to be reused to communicate with a different peer.
 	      \begin{table}[htbp]
 		      \centering
 		      \caption{Example of endpoint-independent mapping for two remote destinations.}
@@ -138,73 +138,114 @@ The fundamental question is what happens when the same internal endpoint communi
 
 	\item In the \textit{Address-Dependent Mapping} behavior, the mapping depends on the destination IP address. The same internal endpoint can be associated with different external endpoints when communicating with different external destinations.
 
-	\item In the \textit{Address and Port-Dependent Mapping} behavior, the mapping depends on both the destination IP address and the remote endpoint's port number. In this case, the public endpoint observed during communication with a specific server
+	\item In the \textit{Address and Port-Dependent Mapping} behavior, the mapping depends on both the destination IP address and the remote endpoint's port number. In this case, the external endpoint observed during communication with a specific server
 	      may not be the one used by NAT when communicating with another peer.
 	      This behavior makes NAT traversal more complex, because knowing the observed mapping to an external server does not necessarily guarantee that one can predict the mapping that will be used when communicating with another device.
 
 \end{itemize}
 
 \paragraph{Filtering Behavior}
-The filtering behavior, on the other hand, concerns the packets coming from the external network and determines which sources are allowed to reuse the existing mapping.
+Filtering Behavior determines which external endpoints are allowed to send packets through an existing mapping.
 
-Filtering is distinct from mapping: two NATs can assign the same external endpoint in the same way, but they can accept the traffic with different filtering rules.
+Consider again an internal host using the endpoint \texttt{192.168.1.10:5000}. Suppose that the host sends a UDP packet to an external server located at \\ \texttt{198.51.100.10:3478} and that the NAT creates the following mapping: \[\texttt{192.168.1.10:5000}\longleftrightarrow\texttt{203.0.113.20:40000} \]
+
+The mapping determines where packets addressed to \texttt{203.0.113.20:40000} should be forwarded inside the private network. The filtering behavior determines instead which external sources are allowed to send packets through this mapping.
+
+Three main filtering behaviors are defined:
 
 \begin{itemize}
-	\item In \textit{Endpoint-Independent Filtering}, once the mapping has been created, NAT can accept traffic directed to that mapping regardless of the external sender's address and port.
+	\item In \textit{Endpoint-Independent Filtering}, once the mapping has been created, packets from any external IP address and port can be accepted through that mapping.
 
-	\item In \textit{Address-Dependent Filtering}, NAT allows traffic only from IP addresses to which the internal host has previously sent traffic.
+	\item In \textit{Address-Dependent Filtering}, packets are accepted only from an external IP address to which the internal endpoint has previously sent traffic. The source port of the external host is not relevant.
 
-	\item Finally, in \textit{Address and Port-Dependent Filtering}, packets are accepted only from the exact remote endpoint—that is, the specific IP address and port pair—to which the internal host has previously sent traffic.
+	\item In \textit{Address and Port-Dependent Filtering}, packets are accepted only from the exact external IP address and port to which the internal endpoint has previously sent traffic.
 \end{itemize}
-This distinction is important in peer-to-peer communication. An application that wants to establish a direct connection needs to consider both the public endpoint assigned by the NAT and the necessary conditions, so that packets from the peer can be accepted and forwarded to the internal host.
 
-\subsection{NAT Limitations}
-Although NAT is generally transparent to many client-server applications, address translation violates the principle that an endpoint can be consistently identified by its IP address.
+\begin{example}
+	Assume that \texttt{192.168.1.10:5000} has previously sent traffic to \\
+	\texttt{198.51.100.10:3478}. The behavior can be summarized as shown in Table~\ref{tab:filtering-behavior}.
 
-\cite{rfc3027} examines several scenarios in which the presence of a NAT can interfere with the proper functioning of protocols and applications.
+	\begin{table}[htbp]
+		\centering
+		\caption{Example of different NAT filtering behaviors.}
+		\label{tab:filtering-behavior}
 
-The first issue concerns \textit{the applications which include the IP address or port number in the payload of the packet}. An ordinary NAT modifies only the IP header and, in the case of NAPT,
-also the transport header. It does not know the contents of the payload. \begin{example}
-	Consider an application that includes the following information
-	in the payload of a packet:
+		\begin{tabular}{lll}
+			\toprule
+			Filtering behavior & Incoming source             & Accepted? \\
+			\midrule
+
+			Endpoint-Independent
+			                   & \texttt{198.51.100.20:6000}
+			                   & Yes                                     \\
+
+			Address-Dependent
+			                   & \texttt{198.51.100.10:6000}
+			                   & Yes                                     \\
+
+			Address-Dependent
+			                   & \texttt{198.51.100.20:3478}
+			                   & No                                      \\
+
+			Address and Port-Dependent
+			                   & \texttt{198.51.100.10:3478}
+			                   & Yes                                     \\
+
+			Address and Port-Dependent
+			                   & \texttt{198.51.100.10:6000}
+			                   & No                                      \\
+
+			\bottomrule
+		\end{tabular}
+	\end{table}
+
+\end{example}
+This distinction is particularly important for peer-to-peer communication, because establishing a direct path requires both a usable external mapping and filtering rules that allow packets from the remote peer to pass through the NAT.
+
+\section{NAT Limitations and Peer-to-Peer Connectivity}
+Although NAT is transparent to many traditional client-server applications, address translation introduces several limitations because the address used by an endpoint inside a private network is not necessarily the same address observed from the external network.
+
+\paragraph{Address Information in the Application Payload}
+A first problem occurs when an application includes IP addresses or port numbers inside its application payload.
+
+A traditional NAT modifies the IP header and, in the case of NAPT, the transport-layer port numbers. However, it does not necessarily understand or modify information contained inside the application payload.
+
+\begin{example}
+	Consider an application that sends the following information inside its payload:
 
 	\[
 		\texttt{Connect to 192.168.1.10:5000}
 	\]
 
-	Even if the NAT correctly translates the source IP address
-	in the packet header, the private address contained in the
-	payload remains unchanged.
+	Although the NAT can translate the source address contained in the IP header, the private address inside the application payload may remain unchanged.
 
-	Consequently, an external host cannot use this address
-	to establish a connection with the internal device.
+	An external host receiving this information cannot directly use \texttt{192.168.1.10:5000}, since this endpoint is meaningful only inside the private network.
 \end{example}
 
-A possible solution is to use an \textit{Application Layer Gateway (ALG)}. An ALG knows the specific application protocol and can modify the information in the payload. However, it requires that
-the intermediate device understand the application protocol and maintain the necessary state.
+A possible solution is the use of an \textit{Application Layer Gateway (ALG)}. An ALG understands a specific application protocol and can inspect and modify address or port information contained in the payload.
 
-The second issue concerns \textit{bundled session applications}, that is, applications in which a connection is used to negotiate additional connections. FTP, a standard network protocol used
-to transfer files between a local computer and a remote server on the Internet or on a corporate network, is a classic example: a control connection can contain information about both the address and port to be used for another data connection. The NAT can know the relation between those two sessions.
+This solution, however, requires the intermediate device to understand the application protocol and becomes problematic when the relevant information is encrypted or integrity-protected.
 
-Another important category is \textit{peer-to-peer applications}. Unlike the client-server model, in which the server has a known endpoint and it is reachable, in a peer-to-peer application
-both nodes may need to initiate communication. If one or both devices are under NAT, the private addresses are not reachable from the public network.
+\paragraph{Bundled Sessions}
 
-Additional issues relate to \textit{IP fragmentation}, since fragments following the first one may not contain the transport headers necessary for NAPT to correctly identify the translation to be performed.
+Another problem arises in applications where one connection is used to negotiate one or more additional connections.
 
-Some applications also require \textit{the same address mapping to be maintained for long periods of time}. Since NAT associations are temporary, they may expire in the absence of traffic.
-For this reason, some applications use periodic keep-alive messages.
+FTP is a classical example. The protocol uses a control connection to exchange commands and can establish a separate connection for data transfer. In some operating modes, information regarding the address and port used for the data connection is exchanged over the control channel.
 
-Finally, protocols that use \textit{integrity checks or encryption} may be incompatible with certain forms of translation. If the information that a NAT or ALG is supposed to modify is
-cryptographically protected, the intermediate device may not be able to alter it without invalidating the protection.
+A NAT that treats the two connections independently may not know that the second connection is related to the first one. An application-aware mechanism may therefore be required to inspect the FTP control traffic and create or modify the necessary mappings.
 
-\section{Peer-to-Peer Connectivity Across NAT}
-The \textit{peer-to-peer} model differs from the \textit{client-server} model because each node can act as both a sender and a recipient in a communication.
+\paragraph{Peer-to-Peer Applications}
 
-In a client-server architecture, there is a server with a known and accessible address: \(\texttt{Client}\longrightarrow\texttt{Server}\).
-Even if the client is located behind NAT, it can establish a connection to the server. NAT then creates the necessary mapping and allows packets belonging to the session to be returned.
+Peer-to-peer applications represent a particularly important limitation in the context of this work.
 
-The scenario becomes more complex when both peers are located within private networks, as shown in Figure~\ref{fig:peers-behind-nat}.
+The \textit{peer-to-peer} model differs from the traditional \textit{client-server} model because each node can act as both a sender and a receiver during a communication.
 
+In a client-server architecture, the server usually exposes a known and reachable endpoint:
+\[\texttt{Client}\longrightarrow\texttt{Server}\]
+
+A client located behind a NAT can initiate an outgoing connection toward the server. The NAT creates the corresponding mapping and can then forward response traffic back to the client.
+
+The situation becomes more complex when both communicating nodes are located behind different NATs.
 \begin{figure}[htbp]
 	\centering
 	\begin{tikzpicture}[netdiagram]
@@ -224,32 +265,68 @@ The scenario becomes more complex when both peers are located within private net
 	\label{fig:peers-behind-nat}
 \end{figure}
 
-\(P_B\)'s IP address \texttt{192.168.1.20} does not identify the device on the public network and could also be used simultaneously by other hosts belonging to different private networks.
+Let \(P_A\) and \(P_B\) denote the two peers involved in the communication.
 
-Thus, \(P_A\) needs to know the public endpoint associated with \(P_B\), represented by its public IP address and port number.
+The private address of \(P_B\), for example \texttt{192.168.1.20}, cannot be used by \(P_A\) to reach it through the public Internet. The same private address could also be simultaneously used by hosts belonging to completely different private networks.
 
-However, knowing such an endpoint is not always enough. NAT B needs to maintain a state that allows packets from \(P_A\) to pass through it. The same problem exists in the opposite direction.
+Therefore, \(P_A\) must first obtain an external endpoint that can identify \(P_B\) from the external network.
 
-To establish direct communication, at least two conceptual elements are therefore necessary:
+However, knowing the external endpoint alone is not sufficient. The filtering state maintained by NAT B must also allow packets originating from \(P_A\) to reach \(P_B\). The same problem exists in the opposite direction.
+
+Direct peer-to-peer communication across NAT therefore requires at least two elements:
+
 \begin{itemize}
-	\item A mechanism through which the peers can discover and exchange their respective external endpoints.
-	\item A mechanism that allows the necessary state to be created in the NAT, so that traffic from the other peer can be accepted.
+	\item a mechanism through which the peers can discover and exchange their respective external endpoints;
+	\item a mechanism that creates the necessary NAT state so that packets originating from the remote peer can be accepted.
 \end{itemize}
 
-And from this problem arise the main \textit{NAT traversal} techniques.
+This makes peer-to-peer communication fundamentally more difficult than the traditional client-server case when both endpoints are located behind NATs.
+
+\paragraph{IP Fragmentation}
+
+NAPT may also create difficulties when IP packets are fragmented.
+
+Only the first fragment normally contains the complete transport-layer header, including the TCP or UDP port numbers. Subsequent fragments may therefore lack the information required by a NAPT device to immediately determine which transport-layer mapping should be applied.
+
+\paragraph{Mapping Lifetime}
+
+NAT mappings are generally temporary.
+
+If no traffic crosses a mapping for a certain period of time, the NAT may remove its associated state. Applications that need to remain reachable for long periods may therefore periodically transmit \textit{keep-alive} packets in order to refresh the mapping.
+
+This behavior is particularly relevant for protocols based on UDP, where no transport-layer connection state exists that can explicitly indicate whether the communication is still active.
+
+\paragraph{Encrypted and Integrity-Protected Protocols}
+
+NAT can also interfere with protocols that protect parts of the packet using encryption or integrity mechanisms.
+
+If a NAT or an ALG needs to modify information that is cryptographically protected, performing such a modification may invalidate the integrity verification performed by the receiving endpoint.
+
+RFC \cite{rfc3027} discusses examples involving protocols such as IPsec and IKE, where address translation can interfere with information protected or exchanged by the security protocol.
+
+\subsubsection{From NAT Limitations to NAT Traversal}
+
+The limitations described above are particularly significant for peer-to-peer applications, where neither endpoint may be directly reachable from the public Internet.
+
+Establishing direct communication therefore requires mechanisms capable of discovering the external endpoints created by the NATs and of creating or maintaining the NAT state required for packets from the remote peer to be accepted.
+
+These requirements motivate the use of \textit{NAT traversal} techniques, which are discussed in the following section.
 
 \section{NAT Traversal}
 \begin{definition}
-	\textit{NAT Traversal} is a set of techniques used to allow communication between endpoints separated by one or more NATs, particularly when a communication
-	needs to be initiated from the external network or directly between two peers.
+	\textit{NAT Traversal} is the set of techniques used to enable communication between endpoints separated by one or more NATs, particularly when communication must be initiated from the external network or established directly between two peers.
 \end{definition}
-The problem can be addressed in different ways. You can explicitly configure NAT using static mapping or port forwarding, use application gateways, or employ techniques in which
-peers dynamically discover their connectivity information and attempt to establish a direct path.
 
-When a direct connection cannot be initiated, it is also possible to use a \textit{relay} that is, an intermediate node through which traffic is routed.
+NAT traversal addresses the connectivity limitations introduced in the previous section.
+
+In the peer-to-peer case, the objective is to make two endpoints located behind different NATs reachable to each other, preferably without requiring application traffic to permanently pass through a central server.
+
+Different approaches can be used depending on the behavior of the NATs and firewalls involved. These include explicit configuration mechanisms such as port forwarding, endpoint discovery mechanisms, hole punching techniques and, when direct connectivity cannot be established, the use of relay servers.
+
+The following sections introduce UDP hole punching, STUN, TURN and ICE, which provide the theoretical basis required to analyze the connectivity mechanisms used later in this work.
 \subsection{UDP Hole Punching}
 \begin{definition}
-	\textit{UDP hole punching} is one of the main techniques used to establish direct communication between peers located behind different NATs.
+	\textit{UDP hole punching} is a NAT traversal technique in which two peers located behind NATs send UDP packets toward each other's external endpoints in order to create the NAT state required for direct bidirectional communication.
 \end{definition}
 Consider two nodes, \(P_A\) and \(P_B\), both of which belong to private networks (Figure~\ref{fig:udp-hole-punching}).
 
@@ -275,14 +352,14 @@ Since the private addresses of the two peers are not globally routable, \(P_A\) 
 
 In the first step, both peers contact a publicly accessible server, often referred to as a \textit{rendezvous server}. Sending traffic to this server triggers the creation of a mapping in their respective NATs.
 
-The rendezvous server can then observe the public endpoints of the two peers and allow them to exchange this information:
+The rendezvous server can then observe the external endpoints of the two peers and allow them to exchange this information:
 \[
 	\begin{aligned}
-		 & \texttt{A} \rightarrow \texttt{203.0.113.10:40000}  \\
-		 & \texttt{B} \rightarrow \texttt{198.51.100.20:45000}
+		 & \texttt{A} \rightarrow \texttt{203.0.113.10:40000}
+		\qquad \texttt{B} \rightarrow \texttt{198.51.100.20:45000}
 	\end{aligned}
 \]
-Once it has learned the other peer’s public endpoint, \(P_A\) begins sending datagrams to \texttt{198.51.100.20:45000}, while \(P_B\) sends datagrams to \texttt{203.0.113.10:40000}.
+Once it has learned the other peer’s external  endpoint, \(P_A\) begins sending datagrams to \texttt{198.51.100.20:45000}, while \(P_B\) sends datagrams to \texttt{203.0.113.10:40000}.
 The first few packets may be discarded. However, the outgoing traffic helps establish the necessary state in the respective NATs to subsequently allow traffic
 from the other peer.
 
@@ -291,29 +368,12 @@ The desired final result is a direct UDP connection between \(P_A\) and \(P_B\),
 Outgoing traffic creates or updates the state in the respective NATs. In this way, each NAT can accept packets from the other peer. The first datagrams may be discarded if the necessary state does not yet exist,
 but subsequent attempts may allow direct communication to be established.
 
-The success of UDP hole punching depends on the behavior of the NATs involved \cite{rfc5128}. An \textit{Endpoint-Independent Mapping} facilitates the process, since the public endpoint observed during communication with the rendezvous server can also be reused for communication with the peer.
+The success of UDP hole punching depends on the behavior of the NATs involved \cite{rfc5128}. An \textit{Endpoint-Independent Mapping} facilitates the process, since the external endpoint observed during communication with the rendezvous server can also be reused for communication with the peer.
 
-\begin{example}
-	Consider a NAT that assigns different external mappings
-	depending on the destination address.
-
-	When a peer contacts a rendezvous server, the NAT creates
-	a mapping that allows the server to observe a public endpoint.
-
-	However, when the same peer attempts to communicate with
-	another peer, the NAT may assign a different external mapping.
-
-	As a result, the endpoint discovered through the rendezvous
-	server may not correspond to the one used for direct
-	peer-to-peer communication, potentially preventing
-	successful UDP hole punching.
-\end{example}
-
-Finally, since UDP mappings generally have a limited duration, peers may periodically send keep-alive packets to prevent the state maintained by the NAT from expiring.
+Since UDP mappings have a limited duration, peers may periodically send keep-alive packets to prevent the state maintained by the NAT from expiring.
 
 UDP hole punching provides only a connectivity mechanism and does not guarantee properties such as authentication, confidentiality, or integrity. These properties must be provided separately by the protocol used for communication.
 
-\newpage
 \subsection{STUN}
 \begin{definition}
 	\textit{STUN (Session Traversal Utilities for NAT)} is a protocol used to support other protocols and applications that need to operate in the presence of NAT.
@@ -322,10 +382,10 @@ One of its main uses is to allow a host located behind NAT to determine the endp
 
 \begin{example}
 	Consider a client located behind a NAT with the following
-	private endpoint: \texttt{192.168.1.10:5000}
+	internal endpoint: \texttt{192.168.1.10:5000}.
 	When the client communicates with an external STUN server,
-	the NAT creates a mapping between the private endpoint
-	and a public endpoint: \[
+	the NAT creates a mapping between the internal endpoint
+	and a external endpoint: \[
 		\texttt{192.168.1.10:5000}
 		\longrightarrow
 		\texttt{203.0.113.10:40000}
@@ -337,10 +397,8 @@ One of its main uses is to allow a host located behind NAT to determine the endp
 	The server returns this information in a
 	\textit{Binding Success Response}.
 
-	The client can therefore discover that its private endpoint
-	is externally visible as \texttt{203.0.113.10:40000}.
-
-	This address is referred to as the
+	The client can therefore discover that its internal endpoint
+	is externally visible as \texttt{203.0.113.10:40000}. This address is referred to as the
 	\textit{server-reflexive transport address}.
 \end{example}
 
@@ -405,7 +463,6 @@ ICE then performs \textit{connectivity checks} on these candidate pairs. These c
 ICE therefore operates at a higher logical level than STUN and TURN. STUN is mainly used for endpoint discovery and connectivity checks, while TURN provides a relay when a direct path is not available.
 ICE coordinates these mechanisms and selects a working communication path. Thus, STUN, TURN, and ICE should not be considered as three independent alternatives. Instead, they can work together as parts of the same NAT traversal strategy.
 
-\newpage
 \section{VPN Architectures}
 \begin{definition}
 	A \textit{Virtual Private Network (VPN)} allows the creation of a logical private network using an IP infrastructure that can be shared or public. In this way, devices located in a different networks can communicate as if they were part of the same private network.
@@ -430,7 +487,7 @@ A simplified representation is shown in the following Figure:~\ref{fig:centraliz
 		\draw[netboth] (server) -- (peerB);
 	\end{tikzpicture}
 
-	\caption{Block diagram of a centralized VPN: traffic between peers passes through the VPN server.}
+	\caption{traffic between peers passes through the VPN server.}
 	\label{fig:centralized-vpn}
 \end{figure}
 
@@ -438,10 +495,11 @@ This type of model has several pros. Central server typically has a stable and r
 
 Centralized infrastructure can simplify various management functions, such as user and device authentication, network  policy enforcement and overall VPN administration.
 
-However, in this architecture, the central server is also part of the path taken by application traffic. Packets must therefore pass through it even when the two devices could, from a network perspective, communicate directly.
+However, in this architecture, the central server is also part of the path taken by application traffic. Packets must then pass through it even when the two devices could, from a network perspective, communicate directly.
 
 This can result in increased latency, higher bandwidth consumption on the central infrastructure, and greater reliance on the server for communications to function properly.
 
+\newpage
 \subsection{Peer-to-Peer VPNs}
 An alternative approach involves using a \textit{peer-to-peer} architecture, in which nodes attempt, whenever possible, to communicate directly with one another.
 
@@ -487,7 +545,7 @@ In the context of an overlay VPN, the control plane may be responsible for tasks
 
 The data plane, on the other hand, is responsible for transporting the traffic generated by users and applications. Depending on the technology used, these operations may include encapsulation, encryption, decryption, and forwarding of packets through the VPN connections.
 
-The two components therefore perform different functions: the control plane provides the information necessary for the network to operate, while the data plane carries out data transfer according to the established configuration.
+The two components thus perform different functions: the control plane provides the information necessary for the network to operate, while the data plane carries out data transfer according to the established configuration.
 
 Figure~\ref{fig:vpn-control-data-plane} illustrates a scenario in which a central infrastructure coordinates two peers, which communicate directly over the data plane.
 \begin{figure}[htbp]
@@ -512,74 +570,312 @@ The centralization of the control plane therefore does not necessarily entail th
 
 The separation between the two planes also makes it possible to distinguish coordination decisions from the actual path taken by packets. The latter may vary depending on connectivity conditions: for example, a direct connection may be preferred when available, while a route via a relay may be used when network restrictions prevent peer-to-peer communication.
 
+\newpage
 \section{WireGuard}
 
 \begin{definition}
-	\textit{WireGuard} is a Layer 3 VPN protocol designed to provide secure IP communication through encrypted tunnels. Its design focuses on simplicity, performance and a limited attack surface. It uses UDP as its transport protocol and relies on public-key cryptography to authenticate peers and protect the exchanged traffic.
+	\textit{WireGuard} is a Layer 3 VPN protocol designed to establish secure IP tunnels between network peers. It operates over UDP and uses public-key cryptography to authenticate the communicating nodes and symmetric cryptography to protect the packets transmitted through the tunnel.
 \end{definition}
 
-Unlike traditional VPN solutions that may include additional mechanisms for user management and network coordination, WireGuard focuses on establishing secure communication between configured peers.
+WireGuard is intentionally designed to provide a relatively small and focused set of functions. Its main responsibility is to securely transport IP packets between peers that have already been configured to communicate with each other.
 
-\subsection{Peer Configuration and Secure Communication}
+Unlike a complete VPN management system, WireGuard does not define mechanisms for user authentication, peer discovery or network-wide coordination. These functions can instead be provided by additional components built around the protocol.
 
-Each WireGuard interface has its own private key, while remote peers are identified through their public keys. To establish communication, a peer must be configured with information such as:
+\subsection{Keys, Peers and Cryptokey Routing}
+
+Each WireGuard interface has a long-term cryptographic identity represented by a pair of keys:
 \begin{itemize}
-	\item Its own private key;
-	\item The public key of the remote peer;
-	\item The IP addresses or prefixes associated with that peer;
-	\item The remote endpoint, typically an IP address and UDP port, when required.
+	\item a \textit{private key}, which must remain secret on the device;
+	\item a corresponding \textit{public key}, which can be distributed to the other peers.
 \end{itemize}
 
-A fundamental feature of WireGuard is \textit{Cryptokey Routing}, which associates each peer's public key with a set of IP addresses or network prefixes, known as \textit{AllowedIPs}.
+A remote WireGuard node is identified by its public key and not by its current IP address. This distinction is important because the network address of a device may change, for example when the device moves between different networks or when a NAT assigns a different external endpoint.
 
-This mechanism serves two purposes. For outgoing traffic, AllowedIPs determines which peer should receive a packet based on its destination IP address. For incoming traffic, it acts as an access-control mechanism, ensuring that an authenticated peer can only send packets with source addresses permitted by its configuration.
+The private and public keys used by WireGuard are 32 bytes long and are based on \texttt{Curve25519}. Before two peers can communicate, their public keys must be known and associated with the appropriate network configuration.
+
+A peer configuration can contain information such as:
+\begin{itemize}
+	\item the public key of the remote peer;
+	\item the IP addresses or network prefixes associated with that peer;
+	\item the current network endpoint of the peer, when known;
+	\item an optional pre-shared symmetric key.
+\end{itemize}
+
+One of the central concepts in WireGuard is \textit{Cryptokey Routing}.
+
+WireGuard associates each peer's public key with a set of IP addresses or network prefixes through the \texttt{AllowedIPs} configuration. \texttt{AllowedIPs} thus defines which IP addresses are associated with a specific peer and which traffic is expected to be exchanged with that peer.
+
+For \textit{outgoing packets}, \texttt{AllowedIPs} acts similarly to routing information. WireGuard examines the destination IP address of the packet and selects the peer whose configured \texttt{AllowedIPs} contains that address
+
+Consider, for example, the following association:
+\[
+	\texttt{PublicKey}_{B}
+	\longrightarrow
+	\texttt{10.0.0.2/32}
+\]
+
+If Peer \(P_A\) sends an IP packet whose destination is \texttt{10.0.0.2}, WireGuard selects Peer \(P_B\), since that address belongs to the \texttt{AllowedIPs} associated with \(P_B\)'s public key.
+
+The packet can then be protected using the secure session established with that peer and transmitted to its network endpoint.
+
+For \textit{incoming packets}, \texttt{AllowedIPs} also provides an access-control function. After an encrypted packet has been authenticated and decrypted, WireGuard verifies that the source IP address contained in the original packet is associated with the peer that sent it.
+
+The relationship can therefore be represented conceptually as: \[
+	\text{Public Key}
+	\longleftrightarrow
+	\text{Allowed IP addresses}
+	\longleftrightarrow
+	\text{Peer}
+\]
+
+This mechanism allows the cryptographic identity of a peer and the network addresses that it is authorized to use to be directly associated.
+
+\subsection{Cryptographic Design and Handshake}
+
+Although public keys identify the peers, WireGuard does not use the long-term key pair directly to encrypt every application packet.
+
+Instead, before data can be exchanged, the two peers perform a \textit{cryptographic handshake}.
+
+The handshake has two main purposes:
+\begin{itemize}
+	\item authenticate the two peers;
+	\item get temporary symmetric keys that will be used to protect the actual network traffic.
+\end{itemize}
+
+Using temporary symmetric keys is considerably more efficient than performing public-key operations for every transmitted packet.
+
+WireGuard bases its handshake on the \textit{Noise Protocol Framework}. More specifically, it uses a variant of the \texttt{Noise IK} handshake pattern.
+
+The \texttt{IK} model assumes that the initiator already knows the static public key of the responder before the handshake begins. This matches the WireGuard configuration model, where peer public keys are exchanged during configuration rather than discovered during the handshake itself.
+
+\newpage
+Two different types of key material participate in the handshake:
+\begin{itemize}
+	\item The first type consists of the \textit{static keys}. These are the long-term private and public keys associated with the WireGuard interface and represent the cryptographic identity of the peer.
+	\item The second type consists of \textit{ephemeral keys}. These keys are generated for a handshake and are temporary.
+\end{itemize}
+
+The use of ephemeral keys is important because the session does not rely exclusively on the long-term private keys. Once the temporary key material is discarded, compromising a static key in the future does not automatically reveal the encryption keys used by previous sessions. This property contributes to \textit{forward secrecy}.
+
+During the handshake, WireGuard uses several cryptographic primitives, each with a different purpose.
+
+\begin{table}[htbp]
+	\centering
+	\caption{Main cryptographic primitives used by WireGuard.}
+	\label{tab:wireguard-cryptographic-primitives}
+
+	\begin{tabular}{ll}
+		\toprule
+		Primitive                  & Purpose                       \\
+		\midrule
+		\texttt{Curve25519}        & Diffie--Hellman key agreement \\
+		\texttt{ChaCha20-Poly1305} & Authenticated encryption      \\
+		\texttt{BLAKE2s}           & Cryptographic hashing         \\
+		\texttt{HKDF}              & Derivation of session keys    \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+\paragraph{Curve25519} is an elliptic-curve cryptographic function used to perform a form of \textit{Diffie--Hellman key agreement}. The purpose of Diffie--Hellman is to allow two peers to independently derive the same shared information without transmitting it directly over the network.
+
+\paragraph{ChaCha20-Poly1305} is an authenticated-encryption algorithm. \texttt{ChaCha20} encrypts the data so that its content cannot be read by an observer, while \texttt{Poly1305} provides an authentication tag that allows the receiver to verify that the encrypted message has not been modified.
+
+WireGuard thus obtains both confidentiality and integrity from the same authenticated-encryption mechanism.
+
+\paragraph{BLAKE2s} is a cryptographic hash function. A hash function transforms an arbitrary amount of input data into a fixed-size output. During the WireGuard handshake, hashing is used to combine and authenticate information exchanged during the protocol.
+
+\paragraph{HKDF} is a key-derivation function. It takes the secret material obtained during the handshake and derives the independent symmetric keys that will be used to protect transport traffic.
+
+\newpage
+The normal WireGuard handshake requires one round trip:
+\[
+	\begin{aligned}
+		P_A & \longrightarrow P_B
+		    &                     & \text{Handshake Initiation} \\
+		P_A & \longleftarrow P_B
+		    &                     & \text{Handshake Response}
+	\end{aligned}
+\]
+
+Peer \(P_A\), acting as the initiator, first generates an ephemeral key pair and sends a \textit{Handshake Initiation} message.
+
+This message contains information that allows \(P_B\) to authenticate the initiator and participate in the key agreement. Among its fields are the initiator's ephemeral public key, information related to its static identity and a timestamp used to prevent replay of old handshake messages.
+
+Peer \(P_B\) then generates its own ephemeral key pair and returns a \textit{Handshake Response}.
+
+By combining their static and ephemeral key material through Diffie--Hellman operations, both peers independently derive the same cryptographic secrets.
+
+These secrets are then processed using the key-derivation mechanism to obtain a pair of symmetric transport keys: \( K_{\text{send}}, \quad K_{\text{receive}}\)
+
+One key protects traffic sent in one direction and the other protects traffic in the opposite direction.
+
+After the handshake has completed, the expensive public-key operations are no longer required for each packet. Normal IP traffic is instead protected using the newly derived symmetric keys.
+
+The complete sequence can be represented as:
+\[
+	\begin{aligned}
+		P_A & \longrightarrow P_B
+		    &                         & \text{Handshake Initiation}     \\
+		P_A & \longleftarrow P_B
+		    &                         & \text{Handshake Response}       \\
+		P_A & \longleftrightarrow P_B
+		    &                         & \text{Encrypted Transport Data}
+	\end{aligned}
+\]
+
+WireGuard periodically establishes new sessions and replaces the transport keys. The use of temporary session keys limits the amount of traffic protected by the same cryptographic material.
+
+WireGuard also supports an optional 32-byte \textit{pre-shared symmetric key}. When configured, this key is mixed into the normal key derivation process and provides an additional secret shared between the two peers. It does not replace the normal public-key authentication mechanism.
+
+\subsection{Packet Transport}
+WireGuard uses a small set of message formats to perform the handshake and transport encrypted data. Four principal message types are defined:
+
+\begin{table}[htbp]
+	\centering
+	\label{tab:wireguard-message-types}
+
+	\begin{tabular}{cl}
+		\toprule
+		Type & Message              \\
+		\midrule
+		1    & Handshake Initiation \\
+		2    & Handshake Response   \\
+		3    & Cookie Reply         \\
+		4    & Transport Data       \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+\newpage
+The first two message types are used to perform the cryptographic handshake described in the previous subsection. The third message provides protection against denial-of-service attacks, while the fourth carries the actual encrypted IP traffic.
+
+\paragraph{Handshake Initiation}
+
+The \textit{Handshake Initiation} message is sent by the peer that starts the handshake and has a fixed size of 148 bytes.
+
+Its main fields include:
+
+\begin{itemize}
+	\item a sender index used to identify the handshake state;
+	\item a 32-byte ephemeral public key;
+	\item the encrypted static public key of the initiator;
+	\item an encrypted timestamp;
+	\item two message authentication codes.
+\end{itemize}
+
+The ephemeral and static keys contained in the message correspond to the key material introduced in the previous subsection. The ephemeral public key is used during the key-agreement process, while the encrypted static public key allows the responder to authenticate the initiator.
+
+The encrypted timestamp helps protect the handshake against replay attacks, while the message authentication codes are used to validate the request before further processing.
+
+\paragraph{Handshake Response}
+
+After successfully processing the initiation message, the responder sends a \textit{Handshake Response} message, whose fixed size is 92 bytes.
+
+Its main fields include:
+
+\begin{itemize}
+	\item a sender index identifying the responder's handshake state;
+	\item a receiver index referring to the initiator's handshake;
+	\item the responder's 32-byte ephemeral public key;
+	\item authentication information required to complete the handshake.
+\end{itemize}
+
+The sender and receiver indexes allow the two peers to associate the response with the correct handshake state.
+
+After this message has been successfully processed, the peers can derive the symmetric session keys used to protect subsequent \textit{Transport Data} messages.
+
+\paragraph{Cookie Reply}
+
+The third message type, \textit{Cookie Reply}, is associated with WireGuard's protection against denial-of-service attacks.
+
+Public-key cryptographic operations are more computationally expensive than simply receiving a UDP packet. An attacker could thus attempt to consume the responder's resources by continuously sending forged handshake initiation messages.
+
+When this protection is required, the responder can send a \textit{Cookie Reply} before performing additional expensive cryptographic processing.
+
+The cookie allows the responder to verify that the initiator is actually reachable at the source IP address from which the request originated. This makes attacks based on spoofed source addresses more difficult, because an attacker that cannot receive packets at the claimed address cannot correctly answer the challenge.
+
+The cookie mechanism does not establish the VPN session itself; instead, it protects the handshake procedure from resource-exhaustion attacks.
+
+\paragraph{Transport Data}
+
+Once the handshake has successfully established a secure session, normal IP traffic is exchanged using \textit{Transport Data} messages.
+
+At this point, WireGuard no longer needs to perform public-key operations for each application packet. Instead, the symmetric session keys derived during the handshake are used to encrypt and authenticate the traffic.
+
+A transport message contains:
+\begin{itemize}
+	\item a message type field identifying the packet as a transport message;
+	\item a receiver index used to identify the session associated with the packet;
+	\item a 64-bit counter used during authenticated encryption and for replay protection and it increases as packets are transmitted;
+	\item the encrypted IP packet carried as the message payload.
+\end{itemize}
+
+The payload contains the original Layer 3 packet encrypted and authenticated using \texttt{ChaCha20-Poly1305} with the symmetric session key associated with the current session.
+
+\medskip
+
+The complete transmission process can be described as follows. WireGuard receives an original IP packet from the virtual network interface and encrypts it using the symmetric session key established during the handshake. The encrypted packet is then inserted into a \textit{Transport Data} message, which is finally carried inside a UDP datagram and sent to the remote peer's endpoint.
+
+At the receiving side, WireGuard processes the incoming UDP datagram, identifies the corresponding session through the receiver index, verifies the authenticity of the message and decrypts the encapsulated payload using the appropriate session key. The resulting original IP packet is then checked against the \texttt{AllowedIPs} associated with the authenticated peer and, if valid, delivered through the WireGuard virtual interface.
+
+The packet can then be delivered through the WireGuard virtual network interface.
+
+\subsection{Endpoint Roaming and Keepalive}
+
+The cryptographic identity of a WireGuard peer is independent of its current network location. A peer is identified by its public key, while the actual transmission of packets requires a concrete network endpoint, typically represented by an IP address and UDP port.
+
+Since the endpoint depends on the current network location of the device, it may change over time. For example, a mobile device may move from a Wi-Fi network to a cellular network, its public IP address may change, or a NAT may assign a different external mapping.
+
+\paragraph{Endpoint Roaming}
+WireGuard addresses changes in the network location of a peer through a mechanism known as \textit{endpoint roaming}.
+
+When a valid authenticated WireGuard packet is received from a known peer but from a new source IP address or UDP port, WireGuard can update the endpoint associated with that peer. Subsequent packets can then be transmitted to the newly observed endpoint.
+
+This behavior is possible because the identity of the peer is established cryptographically through its public key rather than being determined by its current IP address.
 
 \begin{example}
-	Consider two WireGuard peers, \(P_A\) and \(P_B\).
+	Suppose that Peer \(P_B\) is initially associated with the following endpoint: \(\texttt{203.0.113.20:51820} \)
 
-	\(P_A\) is configured with \(P_B\)'s public key and the following AllowedIPs entry:
+	If WireGuard subsequently receives a valid authenticated packet from the same peer using the endpoint \(\texttt{198.51.100.15:42000},\) the endpoint associated with \(P_B\) can be updated accordingly.
 
-	\[
-		\texttt{AllowedIPs = 10.0.0.2/32}
-	\]
-
-	When a packet destined for \texttt{10.0.0.2} is sent through \(P_A\)'s WireGuard interface, the protocol selects \(P_B\) according to the configured AllowedIPs.
-
-	The packet is then encrypted, encapsulated inside a UDP datagram and transmitted to \(P_B\)'s known endpoint.
-
-	After receiving the datagram, \(P_B\) authenticates and decrypts its contents. If the source IP address of the original packet is permitted by \(P_B\)'s configuration, the packet is accepted and delivered through the virtual network interface.
+	The peer is still considered the same \(P_B\), since its cryptographic identity has not changed.
 \end{example}
 
-Before encrypted data can be exchanged, WireGuard performs a cryptographic handshake based on the Noise protocol framework. This process allows the peers to authenticate each other and establish temporary symmetric keys used to protect subsequent communication.
+Endpoint roaming is particularly useful in dynamic network environments, where the network address of a device may change while the device remains part of the same VPN.
 
-These session keys are periodically renewed, providing forward secrecy and limiting the consequences of a potential key compromise.
+However, endpoint roaming does not provide a complete NAT traversal mechanism. WireGuard must first receive a valid authenticated packet from the new endpoint before it can learn and adopt it.
 
-\subsection{Connectivity Across NAT}
+This limitation becomes important when two peers are initially located behind different NATs and neither peer knows a reachable external endpoint for the other. In such a situation, endpoint roaming alone cannot establish the initial communication path.
 
-Although WireGuard provides the mechanisms needed to secure communication, it does not directly handle all the operations required to establish connectivity between peers.
+\paragraph{PersistentKeepalive}
+WireGuard normally avoids transmitting packets when no application traffic needs to be exchanged. This behavior reduces unnecessary network overhead, but it can create a problem when a peer is located behind a NAT or a stateful firewall.
 
-This limitation becomes particularly relevant when devices are located behind NAT.
+As discussed in the previous sections, UDP mappings maintained by NAT devices are generally temporary. If no packets are transmitted for a sufficiently long period of time, the NAT may remove the corresponding mapping. As a consequence, a peer that was previously reachable through that mapping may no longer be able to receive traffic from the remote peer.
 
-Consider the topology previously illustrated in Figure~\ref{fig:peers-behind-nat}, where two peers belong to different private networks and communicate through separate NAT devices.
+The \texttt{PersistentKeepalive} option addresses this problem by causing WireGuard to periodically transmit a small authenticated packet to the remote endpoint, even when no application data is being exchanged.
 
-WireGuard can encrypt and authenticate the exchanged packets, but it does not automatically determine how the peers can reach each other across those NATs.
+These periodic packets refresh the state maintained by the NAT or stateful firewall and can preserve an already established communication path.
 
-In a manually configured deployment, a peer may be assigned a fixed remote endpoint, consisting of an IP address and UDP port. This approach works when the endpoint is reachable, but becomes less reliable when public addresses change or when both peers are located behind restrictive NATs.
+\begin{example}
+	Consider two WireGuard peers, \(P_A\) and \(P_B\), where \(P_A\) is located behind a NAT.
 
-To accommodate changes in network connectivity, WireGuard supports a mechanism known as \textit{endpoint roaming}.
+	After \(P_A\) sends traffic to \(P_B\), the NAT creates a UDP mapping that allows return traffic from \(P_B\) to reach \(P_A\).
 
-When a peer receives a valid authenticated packet from a different source IP address or UDP port, WireGuard can update the corresponding remote endpoint. Subsequent packets can then be sent to this newly observed address.
+	If no packets are exchanged for a sufficiently long period of time, the NAT may remove this mapping. As a result, packets subsequently sent by \(P_B\) may no longer reach \(P_A\).
 
-This behavior is useful when a device changes networks or when its public endpoint changes due to NAT. However, endpoint roaming depends on receiving an authenticated packet from the remote peer. It does not provide a general mechanism for discovering an initially unreachable endpoint or establishing connectivity across different NATs.
+	If \texttt{PersistentKeepalive} is enabled on \(P_A\), WireGuard periodically sends a small authenticated packet to \(P_B\). Each of these packets refreshes the NAT state and prevents the mapping from expiring due to inactivity.
 
-Another feature relevant to NAT environments is \textit{PersistentKeepalive}.
+	Therefore, \(P_B\) can continue to send traffic back to \(P_A\) through the already established mapping.
+\end{example}
 
-WireGuard normally avoids transmitting unnecessary packets when no application traffic is being exchanged. While this reduces network overhead, it can create difficulties when a peer is behind a NAT or stateful firewall.
+\texttt{PersistentKeepalive} should not, however, be confused with \textit{NAT traversal} itself.
 
-Since UDP mappings are generally temporary, an inactive connection may lose the mapping that allows incoming packets to reach the internal device.
+The mechanism can maintain a mapping that already exists, but it does not discover which external endpoint has been assigned by the NAT, exchange endpoint information with another peer, or establish a direct path between two initially unreachable devices.
 
-The \texttt{PersistentKeepalive} option addresses this problem by periodically transmitting empty packets to the remote endpoint, helping maintain the NAT or firewall state.
+Endpoint roaming and \texttt{PersistentKeepalive} therefore solve two different problems. The first one allows WireGuard to adapt to changes in the network address of an already authenticated peer, while \texttt{PersistentKeepalive} helps preserve an already established path through NATs or stateful firewalls.
 
-However, this mechanism should not be confused with NAT traversal. Persistent keepalive packets can preserve an existing mapping, but they do not discover the public endpoint of a peer or guarantee that a direct connection can be established.
+Neither mechanism, however, provides a complete solution for peer discovery or \textit{NAT traversal}.
 
-WireGuard therefore provides the secure tunneling mechanism used to transport data between peers, while other components may be necessary to discover endpoints, exchange connection information and establish communication across NATs.
+WireGuard thus provides the mechanisms required to authenticate peers, establish cryptographic session keys and securely transport IP packets, but additional coordination mechanisms are required when peers must discover each other and establish direct connectivity across different NATs.
+
+These additional mechanisms are particularly important in peer-to-peer VPN systems and provide the basis for the architecture discussed in the following chapter.

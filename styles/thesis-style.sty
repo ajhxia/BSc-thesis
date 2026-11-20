@@ -8,6 +8,7 @@
 \RequirePackage{graphicx}
 \RequirePackage{booktabs}
 \graphicspath{{figures/}}
+\RequirePackage{enumitem}
 \usetikzlibrary{arrows.meta,positioning,shapes.geometric}
 
 % Stile uniforme e compatto per gli schemi di rete.
@@ -57,3 +58,10 @@
 % Solo section e subsection numerate e visibili nell'indice.
 \setcounter{secnumdepth}{2}
 \setcounter{tocdepth}{2}
+
+\setlist[itemize]{
+	itemsep=5pt,
+	parsep=0pt,
+	topsep=3pt,
+	partopsep=0pt
+}
